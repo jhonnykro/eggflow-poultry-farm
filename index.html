@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EggFlow — Gestión de Granja Avícola</title>
+<style>
+  :root{--ink:#111;--paper:#fafafa;--line:#e4e4e0;--accent:#2d6a4f;--warn:#b3541e;--bad:#a4161a;--ok:#2d6a4f;--muted:#6b6b66;--card:#fff;--radius:12px}
+  *{box-sizing:border-box;margin:0}
+  body{font-family:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--paper);color:var(--ink);line-height:1.45}
+  header{background:var(--ink);color:#fff;padding:16px 20px;display:flex;flex-wrap:wrap;gap:8px;align-items:baseline;justify-content:space-between}
+  header h1{font-size:1.3rem;letter-spacing:.02em}
+  header .sub{font-size:.8rem;color:#bbb}
+  .demo-banner{background:#fff4d6;border-bottom:1px solid #e8d48a;padding:8px 20px;font-size:.82rem;color:#6b5310}
+  nav{display:flex;gap:4px;flex-wrap:wrap;padding:10px 16px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5}
+  nav button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 14px;font-size:.85rem;cursor:pointer}
+  nav button.active{background:var(--ink);color:#fff;border-color:var(--ink)}
+  main{max-width:960px;margin:0 auto;padding:18px 16px 60px}
+  section{display:none}section.active{display:block}
+  h2{font-size:1.1rem;margin-bottom:12px}
+  .grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+  .kpi .label{font-size:.75rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  .kpi .value{font-size:1.5rem;font-weight:700;margin-top:2px}
+  .kpi .note{font-size:.75rem;color:var(--muted)}
+  form{display:grid;gap:10px}
+  label{font-size:.82rem;font-weight:600;display:block;margin-bottom:3px}
+  input,select{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:8px;font-size:.95rem;background:#fff}
+  input:focus,select:focus{outline:2px solid var(--accent);outline-offset:1px}
+  .row{display:grid;gap:10px;grid-template-columns:repeat(auto-fit,minmax(120px,1fr))}
+  .btn{background:var(--accent);color:#fff;border:0;border-radius:8px;padding:10px 16px;font-size:.9rem;font-weight:600;cursor:pointer}
+  .btn.secondary{background:#fff;color:var(--ink);border:1px solid var(--line)}
+  .btn.danger{background:#fff;color:var(--bad);border:1px solid var(--bad)}
+  table{width:100%;border-collapse:collapse;font-size:.85rem;background:#fff}
+  th,td{padding:8px 10px;border-bottom:1px solid var(--line);text-align:left}
+  th{font-size:.72rem;text-transform:uppercase;letter-spacing:.04em;color:var(--muted)}
+  .table-wrap{overflow-x:auto;border:1px solid var(--line);border-radius:var(--radius);margin-top:12px}
+  .alert{display:flex;gap:10px;align-items:flex-start;border-radius:var(--radius);padding:10px 14px;font-size:.85rem;margin-bottom:8px;border:1px solid}
+  .alert.warn{background:#fdf3e7;border-color:#e6c9a8;color:#7a4416}
+  .alert.bad{background:#fdeaea;border-color:#eab0b2;color:#7c1d20}
+  .alert.ok{background:#e9f5ee;border-color:#bfe0cd;color:#1e5238}
+  .tag{display:inline-block;padding:2px 9px;border-radius:999px;font-size:.72rem;font-weight:700}
+  .tag.pendiente{background:#fdf3e7;color:#7a4416}.tag.confirmada{background:#e9f5ee;color:#1e5238}.tag.entregada{background:#e8eefc;color:#25418f}.tag.cancelada{background:#eee;color:#666}
+  .est{font-size:.7rem;color:var(--muted);font-style:italic}
+  .report{white-space:pre-wrap;font-family:ui-monospace,Menlo,monospace;font-size:.82rem;background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:16px}
+  .mt{margin-top:16px}.mb{margin-bottom:12px}
+  .actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px}
+  @media(max-width:480px){.kpi .value{font-size:1.25rem}header h1{font-size:1.1rem}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🥚 EggFlow</h1><div class="sub">Gestión de producción, inventario y costos — granja avícola</div></div>
+  <div class="sub" id="todayLabel"></div>
+</header>
+<div class="demo-banner" id="demoBanner">⚠️ Datos de demostración (granja de ejemplo en El Salvador, precios en USD). No representan resultados reales de ningún negocio.</div>
+<nav id="nav">
+  <button data-view="dashboard" class="active">Panel</button>
+  <button data-view="produccion">Producción</button>
+  <button data-view="inventario">Inventario y ventas</button>
+  <button data-view="costos">Alimento y costos</button>
+  <button data-view="alertas">Alertas</button>
+</nav>
+<main>
+  <!-- DASHBOARD -->
+  <section id="dashboard" class="active">
+    <h2>Panel de gestión</h2>
+    <div id="dashAlerts"></div>
+    <div class="grid" id="kpis"></div>
+    <div class="mt">
+      <h2>Reporte diario de operaciones</h2>
+      <div class="report" id="dailyReport"></div>
+    </div>
+  </section>
+
+  <!-- PRODUCCIÓN -->
+  <section id="produccion">
+    <h2>Registro diario de producción</h2>
+    <div class="card mb">
+      <form id="prodForm">
+        <div class="row">
+          <div><label for="pFecha">Fecha</label><input type="date" id="pFecha" required></div>
+          <div><label for="pRecolectados">Huevos recolectados</label><input type="number" id="pRecolectados" min="0" step="1" required></div>
+          <div><label for="pRotos">Rotos</label><input type="number" id="pRotos" min="0" step="1" value="0" required></div>
+          <div><label for="pRechazados">Rechazados</label><input type="number" id="pRechazados" min="0" step="1" value="0" required></div>
+        </div>
+        <div id="prodError" role="alert"></div>
+        <button class="btn" type="submit">Guardar producción</button>
+      </form>
+    </div>
+    <div class="grid" id="prodKpis"></div>
+    <div class="table-wrap"><table id="prodTable"><thead><tr><th>Fecha</th><th>Recolectados</th><th>Rotos</th><th>Rechazados</th><th>Vendibles</th><th>% vendible</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- INVENTARIO Y VENTAS -->
+  <section id="inventario">
+    <h2>Inventario y ventas</h2>
+    <div class="grid mb" id="invKpis"></div>
+    <div class="card mb">
+      <h2 class="mb">Nuevo pedido</h2>
+      <form id="orderForm">
+        <div class="row">
+          <div><label for="oCliente">Cliente</label><input type="text" id="oCliente" placeholder="Ej. Tienda La Esquina" required></div>
+          <div><label for="oFormato">Formato</label><select id="oFormato"><option value="30">Bandeja de 30</option><option value="12">Cartón de 12</option><option value="1">Unidad</option></select></div>
+          <div><label for="oCantidad">Cantidad</label><input type="number" id="oCantidad" min="1" step="1" required></div>
+          <div><label for="oPrecio">Precio por formato (USD)</label><input type="number" id="oPrecio" min="0" step="0.01" required></div>
+        </div>
+        <div class="row">
+          <div><label for="oEstado">Estado</label><select id="oEstado"><option value="pendiente">Pendiente</option><option value="confirmada">Confirmada (descuenta inventario)</option></select></div>
+        </div>
+        <div id="orderMsg" role="alert"></div>
+        <button class="btn" type="submit">Registrar pedido</button>
+      </form>
+    </div>
+    <div class="table-wrap"><table id="orderTable"><thead><tr><th>Fecha</th><th>Cliente</th><th>Detalle</th><th>Total USD</th><th>Estado</th><th>Acciones</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- COSTOS -->
+  <section id="costos">
+    <h2>Alimento y costos operativos</h2>
+    <div class="card mb">
+      <h2 class="mb">Registrar alimento o gasto</h2>
+      <form id="costForm">
+        <div class="row">
+          <div><label for="cFecha">Fecha</label><input type="date" id="cFecha" required></div>
+          <div><label for="cTipo">Tipo</label><select id="cTipo"><option value="compra_alimento">Compra de alimento</option><option value="consumo_alimento">Consumo de alimento (lbs)</option><option value="otro_gasto">Otro gasto operativo</option></select></div>
+          <div><label for="cCantidad">Cantidad (lbs, si aplica)</label><input type="number" id="cCantidad" min="0" step="0.1" value="0"></div>
+          <div><label for="cMonto">Monto USD</label><input type="number" id="cMonto" min="0" step="0.01" value="0" required></div>
+        </div>
+        <div><label for="cNota">Nota</label><input type="text" id="cNota" placeholder="Ej. Quintal de concentrado, luz, empaque…"></div>
+        <button class="btn" type="submit">Guardar</button>
+      </form>
+    </div>
+    <div class="grid" id="costKpis"></div>
+    <div class="table-wrap"><table id="costTable"><thead><tr><th>Fecha</th><th>Tipo</th><th>Cantidad</th><th>Monto</th><th>Nota</th></tr></thead><tbody></tbody></table></div>
+  </section>
+
+  <!-- ALERTAS -->
+  <section id="alertas">
+    <h2>Alertas y oportunidades</h2>
+    <p class="est mb">Las alertas solo se muestran aquí. Ninguna acción externa (mensajes, pedidos, cambios financieros) se ejecuta sin aprobación humana.</p>
+    <div id="alertList"></div>
+    <div class="card mt">
+      <h2 class="mb">Umbrales</h2>
+      <form id="thForm">
+        <div class="row">
+          <div><label for="tRotura">% rotura máximo</label><input type="number" id="tRotura" min="0" max="100" step="0.5"></div>
+          <div><label for="tStock">Stock mínimo (huevos)</label><input type="number" id="tStock" min="0" step="1"></div>
+          <div><label for="tProd">Caída de producción %</label><input type="number" id="tProd" min="0" max="100" step="1"></div>
+          <div><label for="tAlimento">Alimento mínimo (lbs)</label><input type="number" id="tAlimento" min="0" step="1"></div>
+        </div>
+        <button class="btn" type="submit">Guardar umbrales</button>
+      </form>
+    </div>
+  </section>
+
+  <div class="actions">
+    <button class="btn secondary" id="btnExport">Exportar datos (JSON)</button>
+    <button class="btn secondary" id="btnReset">Restablecer datos demo</button>
+    <button class="btn danger" id="btnClear">Borrar todos los datos</button>
+  </div>
+</main>
+
+<script>
+"use strict";
+/* ============ Estado y utilidades ============ */
+const KEY="eggflow.v1";
+const $=id=>document.getElementById(id);
+const fmt$=n=>"$"+n.toFixed(2);
+const fmtPct=n=>(isFinite(n)?n.toFixed(1):"—")+"%";
+const today=()=>new Date().toISOString().slice(0,10);
+const dayISO=d=>{const x=new Date(d);return x.toISOString().slice(0,10)};
+function addDays(iso,n){const d=new Date(iso+"T12:00:00");d.setDate(d.getDate()+n);return dayISO(d)}
+
+let state=load();
+
+function load(){
+  try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&s.version===1)return s;}catch(e){}
+  const s=seed();localStorage.setItem(KEY,JSON.stringify(s));return s;
+}
+function save(){localStorage.setItem(KEY,JSON.stringify(state));render();}
+
+/* ============ Datos demo: granja pequeña en El Salvador (USD) ============ */
+function seed(){
+  const prod=[],costs=[],orders=[];
+  const t=today();
+  // 14 días de producción (~180 gallinas ponedoras)
+  const base=[152,148,155,150,149,153,151,147,154,150,152,149,146,151];
+  const broken=[3,2,4,3,2,3,3,5,2,3,4,3,2,3];
+  const rej=[1,2,1,1,2,1,1,1,2,1,1,2,1,1];
+  for(let i=0;i<14;i++)prod.push({fecha:addDays(t,i-13),recolectados:base[i],rotos:broken[i],rechazados:rej[i]});
+  // alimento: compra de 2 quintales (200 lbs) a $32.50 c/u; consumo ~42 lbs/día
+  costs.push({fecha:addDays(t,-13),tipo:"compra_alimento",cantidad:200,monto:65.00,nota:"2 quintales concentrado ponedora ($32.50 c/u)"});
+  costs.push({fecha:addDays(t,-6),tipo:"compra_alimento",cantidad:200,monto:65.00,nota:"2 quintales concentrado ponedora"});
+  for(let i=0;i<14;i++)costs.push({fecha:addDays(t,i-13),tipo:"consumo_alimento",cantidad:42,monto:0,nota:"Consumo diario estimado"});
+  costs.push({fecha:addDays(t,-10),tipo:"otro_gasto",cantidad:0,monto:18.00,nota:"Empaque: bandejas y cartones"});
+  costs.push({fecha:addDays(t,-4),tipo:"otro_gasto",cantidad:0,monto:25.00,nota:"Electricidad galpón"});
+  // pedidos (bandeja de 30 a $4.75, cartón de 12 a $2.00)
+  orders.push({id:1,fecha:addDays(t,-3),cliente:"Tienda La Esquina",formato:30,cantidad:8,precio:4.75,estado:"entregada"});
+  orders.push({id:2,fecha:addDays(t,-2),cliente:"Pupusería Doña Mary",formato:12,cantidad:10,precio:2.00,estado:"entregada"});
+  orders.push({id:3,fecha:addDays(t,-1),cliente:"Mercado Central — puesto 14",formato:30,cantidad:12,precio:4.75,estado:"confirmada"});
+  orders.push({id:4,fecha:t,cliente:"Vecinos (ruta)",formato:1,cantidad:60,precio:0.17,estado:"pendiente"});
+  return {version:1,demo:true,
+    thresholds:{rotura:3,stock:200,caidaProd:10,alimento:100},
+    production:prod,costs:costs,orders:orders,nextOrderId:5,
+    // inventario inicial semilla: stock acumulado antes del rango demo
+    openingStock:1200};
+}
+
+/* ============ Cálculos (fuente única de verdad) ============ */
+function saleable(p){return p.recolectados-p.rotos-p.rechazados;}
+function confirmedSoldEggs(){ // ventas confirmadas/entregadas, descontadas una sola vez
+  return state.orders.filter(o=>o.estado==="confirmada"||o.estado==="entregada")
+    .reduce((s,o)=>s+o.cantidad*o.formato,0);
+}
+function producedEggs(){return state.production.reduce((s,p)=>s+saleable(p),0);}
+function currentStock(){return state.openingStock+producedEggs()-confirmedSoldEggs();}
+function revenue(){return state.orders.filter(o=>o.estado==="confirmada"||o.estado==="entregada")
+  .reduce((s,o)=>s+o.cantidad*o.precio,0);}
+function feedPurchasedLbs(){return state.costs.filter(c=>c.tipo==="compra_alimento").reduce((s,c)=>s+c.cantidad,0);}
+function feedConsumedLbs(){return state.costs.filter(c=>c.tipo==="consumo_alimento").reduce((s,c)=>s+c.cantidad,0);}
+function feedOnHandLbs(){return feedPurchasedLbs()-feedConsumedLbs();}
+function feedPricePerLb(){const compras=state.costs.filter(c=>c.tipo==="compra_alimento"&&c.cantidad>0);
+  const m=compras.reduce((s,c)=>s+c.monto,0),q=compras.reduce((s,c)=>s+c.cantidad,0);return q>0?m/q:null;}
+function otherExpenses(){return state.costs.filter(c=>c.tipo==="otro_gasto").reduce((s,c)=>s+c.monto,0);}
+function feedCostPerEgg(){const p=feedPricePerLb();if(p===null)return null;
+  const eggs=state.production.reduce((s,x)=>s+x.recolectados,0);return eggs>0?feedConsumedLbs()*p/eggs:null;}
+function lastDay(){return state.production.length?state.production[state.production.length-1]:null;}
+function weekCompare(){
+  if(state.production.length<14)return null;
+  const wk=i=>state.production.slice(i*7,i*7+7).reduce((s,p)=>s+p.recolectados,0);
+  const prev=wk(0),cur=wk(1);return prev>0?(cur-prev)/prev*100:null;
+}
+
+/* ============ Alertas ============ */
+function computeAlerts(){
+  const a=[],th=state.thresholds,ld=lastDay();
+  const stock=currentStock();
+  if(stock<th.stock)a.push({lvl:"bad",msg:`Inventario bajo: ${stock} huevos disponibles (mínimo configurado: ${th.stock}).`});
+  if(ld){const r=ld.rotos/ld.recolectados*100;
+    if(r>th.rotura)a.push({lvl:"warn",msg:`Rotura elevada ayer/hoy (${fmtPct(r)} sobre umbral ${th.rotura}%). Revisar manejo y empaque.`});}
+  const wc=weekCompare();
+  if(wc!==null&&wc<=-th.caidaProd)a.push({lvl:"bad",msg:`Caída anormal de producción: ${wc.toFixed(1)}% vs. semana anterior. Verificar salud del lote, agua y alimento.`});
+  const feed=feedOnHandLbs();
+  if(feed<th.alimento)a.push({lvl:"warn",msg:`Alimento por agotarse: ${feed.toFixed(0)} lbs disponibles (mínimo: ${th.alimento}). Programar compra.`});
+  const pend=state.orders.filter(o=>o.estado==="pendiente");
+  const pendEggs=pend.reduce((s,o)=>s+o.cantidad*o.formato,0);
+  if(pendEggs>stock)a.push({lvl:"bad",msg:`Pedidos pendientes (${pendEggs} huevos) superan el stock (${stock}). No se pueden cumplir todos.`});
+  if(!a.length)a.push({lvl:"ok",msg:"Sin problemas detectados. Operación dentro de los umbrales."});
+  // oportunidad de negocio
+  const br=state.production.length?state.production.reduce((s,p)=>s+p.rotos,0)/state.production.reduce((s,p)=>s+p.recolectados,0)*100:0;
+  if(br>2)a.push({lvl:"warn",msg:`Oportunidad: la tasa de rotura acumulada es ${fmtPct(br)}. Reducirla al 2% liberaría ~${Math.round(state.production.reduce((s,p)=>s+p.recolectados,0)*(br-2)/100)} huevos vendibles por período.`});
+  return a;
+}
+
+/* ============ Render ============ */
+function kpi(label,value,note){return `<div class="card kpi"><div class="label">${label}</div><div class="value">${value}</div><div class="note">${note||""}</div></div>`;}
+function render(){
+  $("todayLabel").textContent=new Date().toLocaleDateString("es-SV",{weekday:"long",year:"numeric",month:"long",day:"numeric"});
+  $("demoBanner").style.display=state.demo?"block":"none";
+  const ld=lastDay(),stock=currentStock(),fce=feedCostPerEgg(),wc=weekCompare();
+  // Dashboard KPIs
+  $("kpis").innerHTML=[
+    ld?kpi("Recolectados (últ. día)",ld.recolectados,ld.fecha):kpi("Recolectados","—","sin registros"),
+    ld?kpi("% vendible",fmtPct(saleable(ld)/ld.recolectados*100),`${saleable(ld)} de ${ld.recolectados}`):"",
+    ld?kpi("Dañados",ld.rotos+ld.rechazados,`${ld.rotos} rotos · ${ld.rechazados} rechazados`):"",
+    kpi("Inventario (huevos)",stock,`≈ ${Math.floor(stock/30)} bandejas de 30`),
+    kpi("Ingresos confirmados",fmt$(revenue()),"confirmadas + entregadas"),
+    kpi("Alimento disponible",feedOnHandLbs().toFixed(0)+" lbs","comprado − consumido"),
+    kpi("Costo alimento / huevo",fce!==null?fmt$(fce):"—",fce!==null?'<span class="est">estimado</span>':"sin compras registradas"),
+    kpi("Producción semanal",wc!==null?(wc>=0?"+":"")+wc.toFixed(1)+"%":"—","vs. semana anterior")
+  ].join("");
+  // Alertas en dashboard
+  $("dashAlerts").innerHTML=computeAlerts().filter(a=>a.lvl!=="ok").map(a=>`<div class="alert ${a.lvl}">⚠️ <div>${a.msg}</div></div>`).join("");
+  // Reporte diario
+  $("dailyReport").textContent=buildReport();
+  // Producción
+  const rows=[...state.production].sort((a,b)=>b.fecha.localeCompare(a.fecha));
+  $("prodTable").querySelector("tbody").innerHTML=rows.map(p=>
+    `<tr><td>${p.fecha}</td><td>${p.recolectados}</td><td>${p.rotos}</td><td>${p.rechazados}</td><td>${saleable(p)}</td><td>${fmtPct(saleable(p)/p.recolectados*100)}</td></tr>`).join("")||`<tr><td colspan="6">Sin registros aún.</td></tr>`;
+  const tot=state.production.reduce((s,p)=>s+p.recolectados,0),totS=state.production.reduce((s,p)=>s+saleable(p),0);
+  $("prodKpis").innerHTML=[kpi("Total período",tot,`${state.production.length} días`),kpi("Vendibles período",totS,fmtPct(tot>0?totS/tot*100:NaN)),kpi("Promedio diario",state.production.length?Math.round(tot/state.production.length):"—","")].join("");
+  // Inventario / pedidos
+  $("invKpis").innerHTML=[kpi("Stock disponible",stock+" huevos",`${Math.floor(stock/30)} bandejas · ${Math.floor(stock/12)} cartones`),kpi("Reservado (pendiente)",state.orders.filter(o=>o.estado==="pendiente").reduce((s,o)=>s+o.cantidad*o.formato,0)+" huevos","no descontado aún"),kpi("Ingresos",fmt$(revenue()),"")].join("");
+  $("orderTable").querySelector("tbody").innerHTML=[...state.orders].reverse().map(o=>{
+    const fmt=o.formato===30?"bandeja 30":o.formato===12?"cartón 12":"unidad";
+    let acc="";
+    if(o.estado==="pendiente")acc=`<button class="btn secondary" data-act="confirm" data-id="${o.id}">Confirmar</button> <button class="btn danger" data-act="cancel" data-id="${o.id}">Cancelar</button>`;
+    else if(o.estado==="confirmada")acc=`<button class="btn secondary" data-act="deliver" data-id="${o.id}">Marcar entregada</button>`;
+    return `<tr><td>${o.fecha}</td><td>${o.cliente}</td><td>${o.cantidad} × ${fmt}</td><td>${fmt$(o.cantidad*o.precio)}</td><td><span class="tag ${o.estado}">${o.estado}</span></td><td>${acc}</td></tr>`;
+  }).join("")||`<tr><td colspan="6">Sin pedidos aún.</td></tr>`;
+  // Costos
+  const trays=totS>0?totS/30:0;
+  const feedCost=feedPricePerLb()!==null?feedConsumedLbs()*feedPricePerLb():null;
+  const opCost=(feedCost!==null?feedCost:0)+otherExpenses();
+  $("costKpis").innerHTML=[
+    kpi("Alimento comprado",feedPurchasedLbs()+" lbs",""),
+    kpi("Alimento consumido",feedConsumedLbs()+" lbs",'<span class="est">estimado si no hay registro real</span>'),
+    kpi("Costo alimento / huevo",fce!==null?fmt$(fce):"—",fce!==null?'<span class="est">estimado</span>':""),
+    kpi("Otros gastos",fmt$(otherExpenses()),""),
+    kpi("Costo operativo / bandeja vendible",trays>0?fmt$(opCost/trays):"—",'<span class="est">estimado: incluye consumo de alimento valorizado</span>'),
+    kpi("Margen bruto",feedCost!==null?fmt$(revenue()-opCost):"—",feedCost!==null?'<span class="est">estimado — no es resultado financiero verificado</span>':"datos insuficientes")
+  ].join("");
+  $("costTable").querySelector("tbody").innerHTML=[...state.costs].sort((a,b)=>b.fecha.localeCompare(a.fecha)).map(c=>{
+    const t={compra_alimento:"Compra alimento",consumo_alimento:"Consumo alimento",otro_gasto:"Otro gasto"}[c.tipo];
+    return `<tr><td>${c.fecha}</td><td>${t}</td><td>${c.cantidad?c.cantidad+" lbs":"—"}</td><td>${c.monto?fmt$(c.monto):"—"}</td><td>${c.nota||""}</td></tr>`;
+  }).join("")||`<tr><td colspan="5">Sin registros.</td></tr>`;
+  // Alertas
+  $("alertList").innerHTML=computeAlerts().map(a=>`<div class="alert ${a.lvl}">${a.lvl==="ok"?"✅":"⚠️"} <div>${a.msg}</div></div>`).join("");
+  $("tRotura").value=state.thresholds.rotura;$("tStock").value=state.thresholds.stock;
+  $("tProd").value=state.thresholds.caidaProd;$("tAlimento").value=state.thresholds.alimento;
+}
+
+function buildReport(){
+  const ld=lastDay();if(!ld)return "Sin datos de producción.";
+  const stock=currentStock(),fce=feedCostPerEgg();
+  return [
+`REPORTE DIARIO — ${ld.fecha}`,
+`Producción: ${ld.recolectados} recolectados · ${ld.rotos} rotos · ${ld.rechazados} rechazados`,
+`Vendibles: ${saleable(ld)} (${fmtPct(saleable(ld)/ld.recolectados*100)})`,
+`Inventario: ${stock} huevos (≈ ${Math.floor(stock/30)} bandejas de 30)`,
+`Pedidos pendientes: ${state.orders.filter(o=>o.estado==="pendiente").length} · Confirmados/entregados: ${state.orders.filter(o=>o.estado!=="pendiente"&&o.estado!=="cancelada").length}`,
+`Ingresos acumulados: ${fmt$(revenue())}`,
+`Alimento: ${feedOnHandLbs().toFixed(0)} lbs disponibles · costo/huevo ${fce!==null?fmt$(fce)+" (estimado)":"sin datos"}`,
+`Prioridad: ${computeAlerts().find(a=>a.lvl!=="ok")?.msg||"operación normal"}`,
+`— Todo monto marcado como estimado no es un resultado financiero verificado.`].join("\n");
+}
+
+/* ============ Eventos ============ */
+$("nav").addEventListener("click",e=>{
+  const b=e.target.closest("button");if(!b)return;
+  document.querySelectorAll("nav button").forEach(x=>x.classList.toggle("active",x===b));
+  document.querySelectorAll("main section").forEach(s=>s.classList.toggle("active",s.id===b.dataset.view));
+});
+
+$("prodForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const f=$("pFecha").value,r=+$("pRecolectados").value,ro=+$("pRotos").value,re=+$("pRechazados").value,err=$("prodError");
+  err.innerHTML="";
+  if(!f||isNaN(r)||isNaN(ro)||isNaN(re)||r<0||ro<0||re<0){err.innerHTML=`<div class="alert bad">Valores inválidos: no se aceptan negativos ni campos vacíos.</div>`;return;}
+  if(ro+re>r){err.innerHTML=`<div class="alert bad">Rotos + rechazados (${ro+re}) no pueden superar lo recolectado (${r}).</div>`;return;}
+  const ex=state.production.find(p=>p.fecha===f);
+  if(ex){if(!confirm(`Ya existe un registro para ${f}. ¿Reemplazarlo?`))return;Object.assign(ex,{recolectados:r,rotos:ro,rechazados:re});}
+  else state.production.push({fecha:f,recolectados:r,rotos:ro,rechazados:re});
+  state.production.sort((a,b)=>a.fecha.localeCompare(b.fecha));
+  e.target.reset();$("pFecha").value=today();save();
+});
+
+$("orderForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const msg=$("orderMsg");msg.innerHTML="";
+  const o={id:state.nextOrderId++,fecha:today(),cliente:$("oCliente").value.trim(),
+    formato:+$("oFormato").value,cantidad:+$("oCantidad").value,precio:+$("oPrecio").value,estado:$("oEstado").value};
+  if(!o.cliente||!(o.cantidad>0)||o.precio<0){msg.innerHTML=`<div class="alert bad">Revisa cliente, cantidad y precio.</div>`;return;}
+  if(o.estado==="confirmada"&&o.cantidad*o.formato>currentStock()){
+    msg.innerHTML=`<div class="alert bad">⚠️ Pedido no cumplible: requiere ${o.cantidad*o.formato} huevos y hay ${currentStock()}. Registrado como pendiente.</div>`;
+    o.estado="pendiente";}
+  state.orders.push(o);e.target.reset();save();
+});
+
+$("orderTable").addEventListener("click",e=>{
+  const b=e.target.closest("button[data-act]");if(!b)return;
+  const o=state.orders.find(x=>x.id===+b.dataset.id);if(!o)return;
+  if(b.dataset.act==="confirm"){
+    if(o.cantidad*o.formato>currentStock()){alert(`No se puede confirmar: stock insuficiente (${currentStock()} disponibles).`);return;}
+    o.estado="confirmada"; // descuento único: solo confirmadas/entregadas restan stock
+  }
+  if(b.dataset.act==="deliver")o.estado="entregada";
+  if(b.dataset.act==="cancel")o.estado="cancelada"; // nunca descontó stock
+  save();
+});
+
+$("costForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const tipo=$("cTipo").value,cant=+$("cCantidad").value||0,monto=+$("cMonto").value||0;
+  if(!$("cFecha").value||monto<0||cant<0)return;
+  if(tipo!=="otro_gasto"&&tipo==="compra_alimento"&&cant<=0){alert("Indica las lbs compradas.");return;}
+  state.costs.push({fecha:$("cFecha").value,tipo,cantidad:cant,monto,nota:$("cNota").value.trim()});
+  e.target.reset();$("cFecha").value=today();save();
+});
+
+$("thForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  state.thresholds={rotura:+$("tRotura").value,stock:+$("tStock").value,caidaProd:+$("tProd").value,alimento:+$("tAlimento").value};
+  save();
+});
+
+$("btnExport").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="eggflow-datos.json";a.click();
+});
+$("btnReset").addEventListener("click",()=>{if(confirm("¿Restablecer datos de demostración?")){state=seed();save();}});
+$("btnClear").addEventListener("click",()=>{if(confirm("¿Borrar TODOS los datos? Esto no se puede deshacer.")){state={version:1,demo:false,thresholds:{rotura:3,stock:200,caidaProd:10,alimento:100},production:[],costs:[],orders:[],nextOrderId:1,openingStock:0};save();}});
+
+$("pFecha").value=today();$("cFecha").value=today();
+render();
+</script>
+</body>
+</html>
